@@ -159,7 +159,7 @@ def main():
     if st.session_state.logged_in and st.session_state.driver:
         st.success("You are logged in!")
         with st.form("delete_likes_form"):
-            num_likes = st.number_input("How many likes do you want to delete?", min_value=1, max_value=500, value=10)
+            num_likes = st.number_input("How many likes do you want to delete?", min_value=1, max_value=2000, value=2000)
             submit = st.form_submit_button("Delete Likes")
         if submit:
             with st.spinner(f"Deleting {num_likes} likes..."):
