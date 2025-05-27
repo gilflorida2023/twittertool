@@ -75,7 +75,7 @@ def go_to_likes_tab(driver):
         print("Could not find Likes tab:", e)
         return False
 
-def delete_likes(driver, num_likes):
+def delete_likes(driver):
     # Go to profile first
     if not go_to_profile(driver):
         st.warning("Could not find profile tab. Make sure you are logged in.")
@@ -88,28 +88,31 @@ def delete_likes(driver, num_likes):
     time.sleep(5)
     deleted = 0
     scroll_attempts = 0
+    max_empty_scrolls = 5  # Stop after 5 scrolls in a row with no new likes found
+    empty_scrolls = 0
     wait = WebDriverWait(driver, 10)
-    while deleted < num_likes and scroll_attempts < 20:
+
+    while empty_scrolls < max_empty_scrolls:
         try:
             unlike_buttons = wait.until(
                 EC.presence_of_all_elements_located((By.XPATH, '//*[@data-testid="unlike"]'))
             )
             st.write(f"Found {len(unlike_buttons)} Unlike buttons on scroll {scroll_attempts+1}")
             if not unlike_buttons:
-                st.warning("No Unlike buttons found. Try scrolling manually in the browser to load more likes.")
-                break
-            for btn in unlike_buttons:
-                if deleted >= num_likes:
-                    break
-                try:
-                    ActionChains(driver).move_to_element(btn).perform()
-                    driver.execute_script("arguments[0].click();", btn)
-                    time.sleep(1.5)
-                    deleted += 1
-                    st.write(f"Deleted like #{deleted}")
-                except Exception as e:
-                    st.write(f"Failed to click Unlike button: {e}")
-                    continue
+                empty_scrolls += 1
+                st.write(f"No Unlike buttons found. Empty scrolls: {empty_scrolls}/{max_empty_scrolls}")
+            else:
+                empty_scrolls = 0  # Reset if we found likes
+                for btn in unlike_buttons:
+                    try:
+                        ActionChains(driver).move_to_element(btn).perform()
+                        driver.execute_script("arguments[0].click();", btn)
+                        time.sleep(1.5)
+                        deleted += 1
+                        st.write(f"Deleted like #{deleted}")
+                    except Exception as e:
+                        st.write(f"Failed to click Unlike button: {e}")
+                        continue
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(2)
             scroll_attempts += 1
@@ -119,7 +122,7 @@ def delete_likes(driver, num_likes):
     return deleted
 
 def main():
-    st.title("X/Twitter Likes Deletion Tool (Cookie Login, Profile Navigation)")
+    st.title("X/Twitter Likes Deletion Tool (Delete ALL Likes)")
 
     if not os.path.exists(COOKIE_FILE):
         st.error(
@@ -159,11 +162,10 @@ def main():
     if st.session_state.logged_in and st.session_state.driver:
         st.success("You are logged in!")
         with st.form("delete_likes_form"):
-            num_likes = st.number_input("How many likes do you want to delete?", min_value=1, max_value=2000, value=2000)
-            submit = st.form_submit_button("Delete Likes")
+            submit = st.form_submit_button("Delete ALL Likes")
         if submit:
-            with st.spinner(f"Deleting {num_likes} likes..."):
-                deleted = delete_likes(st.session_state.driver, num_likes)
+            with st.spinner("Deleting all likes..."):
+                deleted = delete_likes(st.session_state.driver)
                 st.success(f"Deleted {deleted} likes!")
             st.session_state.driver.quit()
             st.session_state.logged_in = False
